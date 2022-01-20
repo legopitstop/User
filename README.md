@@ -1,2 +1,2 @@
-# UserFolder - 1.0.1
+# UserFolder - 1.0.2
 This library allows you to easly save files inside the user folder (C:/User/[Your Username]/.python/[ id ]). Perfect for onefile exe apps that need to save, read and write to config files or use as a default save directory. This library has only been tested on windows 10.
