@@ -8,7 +8,7 @@ setup(
     author='Legopitstop',
     author_email='officiallegopitstop@gmail.com',
     url='https://legopitstop.weebly.com/media.html',
-    download_url='https://github.com/legopitstop/User/archive/v1.1.0.tar.gz',
+    download_url='https://github.com/legopitstop/UserFolder/archive/v1.0.0.tar.gz',
     keywords=['filemanagement', 'user folder', 'easy'],
     classifiers=[
         'Development Status :: 4 - Beta', # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable" as the current state of your package
