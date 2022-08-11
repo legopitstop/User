@@ -1,5 +1,17 @@
 """This library allows you to write and save files to the users folder. Useful for when you convert this script to a onefile exe program."""
 import os
+import requests
+import tarfile
+import zipfile
+import yaml
+import re
+import plyer
+import uuid
+import configparser
+
+__version__ = '1.1.0'
+
+class PackageNotFoundError(Exception): pass
 
 class User():
     def __init__(self,id):
