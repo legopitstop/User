@@ -1,0 +1,3 @@
+- user.copy_from(src,dst,delete=False) Copy file from UserFolder. UserFolder -> any loc. When `delete` is set to true it will delete the src file
+- user.copy_to(src,dst,delete=False) Copy file to UserFolder. any loc -> UserFolder. When `delete` is set to true it will delete the src file
+- use plyer App Installer -> `storagepath.get_application_dir()` user folder -> `storagepath.get_home_dir()`
