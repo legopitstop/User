@@ -1,22 +1,23 @@
-from distutils.core import setup
-import os
+import setuptools
 
-LOCAL = os.path.dirname(os.path.realpath(__file__))
-README = open(LOCAL+'/README.md')
+with open('README.md') as f:
+    long_description = f.read()
 
-setup(
+required_modules = ["requests", "plyer"]
+
+setuptools.setup(
     name='UserFolder',
-    packages=['UserFolder'],
-    version='1.0.2',
-    license='MIT',
-    description='This library allows you to write and save files to the users folder. Useful for when you convert this script to a onefile exe program.',
-    long_description=README.read(),
-    long_description_content_type="text/markdown",
+    version='1.1.0',
     author='Legopitstop',
-    author_email='officiallegopitstop@gmail.com',
-    url='https://legopitstop.weebly.com/media.html',
-    download_url='https://github.com/legopitstop/UserFolder/archive/v1.0.2.tar.gz',
+    description='This library allows you to write and save files to the users folder. Useful for when you convert this script to a onefile exe program.',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url='https://github.com/legopitstop/UserFolder/',
+    packages=setuptools.find_packages(),
+    install_requires=required_modules,
+    license='MIT',
     keywords=['filemanagement', 'user folder', 'easy'],
+    author_email='officiallegopitstop@gmail.com',
     classifiers=[
         'Development Status :: 5 - Production/Stable', # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable" as the current state of your package
         'Intended Audience :: Developers',
@@ -24,5 +25,6 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python :: 3.9',
-    ]
+    ],
+    python_requires='>=3.6'
 )
