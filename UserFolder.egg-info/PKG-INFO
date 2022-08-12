@@ -1,0 +1,54 @@
+Metadata-Version: 2.1
+Name: UserFolder
+Version: 1.1.0
+Summary: This library allows you to write and save files to the users folder. Useful for when you convert this script to a onefile exe program.
+Home-page: https://github.com/legopitstop/UserFolder/
+Author: Legopitstop
+Author-email: officiallegopitstop@gmail.com
+License: MIT
+Keywords: filemanagement,user folder,easy
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development :: Build Tools
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Programming Language :: Python :: 3.9
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE.md
+
+# UserFolder - 1.1.0
+
+## What is this?
+
+This is a simple library that allows you to read, write and create files within your own folder inside the user folder (`C:/User/USER/.python/PACKAGE_ID`)
+
+## Features
+
+- Automatically creates the directory.
+- Read and write to files inside the User folder.
+- Includes an uninstall function that will delete all files inside your directory.
+- A function to open the directory or open the file that is inside the directory.
+
+## Install
+
+`pip install UserFolder`
+
+## Requirements
+
+| Name | Descirption |
+|--|--|
+| [`requests`](https://pypi.org/project/requests/) | **Requests** is a simple, yet elegant, HTTP library. |
+| [`plyer`](https://pypi.org/project/plyer/) | Plyer is a platform-independent api to use features commonly found on various platforms, notably mobile ones, in Python. |
+| [`uuid`](https://pypi.org/project/uuid/) | UUID object and generation functions (Python 2.3 or higher) |
+
+## License
+
+MIT License
+
+## Planning to add
+
+- User.open in write mode will create any folders that are needed.
+
+
