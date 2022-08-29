@@ -548,7 +548,9 @@ class Config():
         ---
         `key` - The key/value pair to remove.
         """
-        return self.config.remove_option(self._section, str(key))
+        result = self.config.remove_option(self._section, str(key))
+        self._write()
+        return result
 
 def example():
     from time import sleep
