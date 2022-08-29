@@ -483,7 +483,10 @@ class Config():
         section, setItem, getItem, removeItem
         """
         self.user = user
-        self._section = section
+
+        # Default section is the user id
+        if section==None: self._section = self.user.id
+        else: self._section = section
         self.file = user.join('.cfg')
         self.config = configparser.ConfigParser()
 
