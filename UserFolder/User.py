@@ -5,20 +5,25 @@ import tarfile
 import zipfile
 import yaml
 import re
-import plyer
 import uuid
 import configparser
 
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 
-class PackageNotFoundError(Exception): pass
-class UnsupportedArchiveError(Exception): pass
+
+class PackageNotFoundError(Exception):
+    pass
+
+
+class UnsupportedArchiveError(Exception):
+    pass
+
 
 class TrackEvent():
-    def __init__(self, member:zipfile.ZipInfo, count:int, total:int):
+    def __init__(self, member: zipfile.ZipInfo, count: int, total: int):
         """
         The track event returned by trackcommand.
-        
+
         Arguments
         ---
         `member` - The Zip.Info or filename
@@ -32,11 +37,12 @@ class TrackEvent():
         self.total = total
         self.percentage = count * 100 / total
 
+
 class User():
-    def __init__(self,id:str,setupcommand=None):
+    def __init__(self, id: str, setupcommand=None):
         """
         Will create the file path inside the Users folder. Your id should be a unique string just for your script.
-        
+
         Arguments
         ---
         `id` - The uuid of the project. Recomended to use a backwords url: 'com.username.project_name'
@@ -48,17 +54,17 @@ class User():
         join, uninstall, exists, open, listdir, show,download, unarchive
         """
         self._setup = setupcommand
-        def trim(s:str): return re.sub(r'[^a-z._\-0-9]','',str(s).lower().strip().replace(' ','_'))
+        def trim(s: str): return re.sub(
+            r'[^a-z._\-0-9]', '', str(s).lower().strip().replace(' ', '_'))
         self.id = trim(id)
-        ROOT = os.path.join(plyer.storagepath.get_home_dir(), '.python')
-        self.path = os.path.join(ROOT,self.id)
+        ROOT = os.path.join(os.path.expanduser('~'), '.python')
+        self.path = os.path.join(ROOT, self.id)
 
         if os.path.isdir(self.path) == False:
             os.makedirs(self.path, exist_ok=True)
-            # Call setup command
-            self._setup(self)
+            self._setup(self)  # Call setup command
 
-    def join(self,*paths:str):
+    def join(self, *paths: str):
         """
         Join user path
 
@@ -67,7 +73,7 @@ class User():
         `paths` - A list of each folder in path
         """
         return os.path.join(self.path, *paths)
-        
+
     def uninstall(self):
         """
         Will delete the scripts user folder.
@@ -82,14 +88,15 @@ class User():
 
         `False` - Failed to delete the scripts user folder, A file is still being prossessed.
         """
-        try: 
+        try:
             for filename in self.list():
                 os.remove(self.path+filename)
             os.rmdir(self.path)
             return True
-        except: return False
-    
-    def exists(self,*paths:str):
+        except:
+            return False
+
+    def exists(self, *paths: str):
         """
         Checks if the file exists inside the scripts user folder.
 
@@ -104,11 +111,14 @@ class User():
         `False` - The file does not exist.
         """
         try:
-            if os.path.isfile(self.join(*paths)): return True
-            else: return False
-        except: return False
+            if os.path.isfile(self.join(*paths)):
+                return True
+            else:
+                return False
+        except:
+            return False
 
-    def open(self,file:str,mode:str='r'):
+    def open(self, file: str, mode: str = 'r'):
         """
         Opens the file that is in the scripts user folder.
 
@@ -144,16 +154,20 @@ class User():
         'U'	universal newline mode (deprecated)
         """
         PATH = self.join(file)
-        if mode=='w' or mode=='a':
+        if mode == 'w' or mode == 'a':
             DIR = os.path.dirname(PATH)
             os.makedirs(DIR, exist_ok=True)
-            try: return open(PATH,mode)
-            except: return None
+            try:
+                return open(PATH, mode)
+            except:
+                return None
         else:
-            try: return open(PATH,mode)
-            except: return None
+            try:
+                return open(PATH, mode)
+            except:
+                return None
 
-    def listdir(self,*paths:str):
+    def listdir(self, *paths: str):
         """
         Returns a list of all files that are in the scripts users folder.
 
@@ -167,10 +181,12 @@ class User():
 
         `None` - Failed to list the directory
         """
-        try: return os.listdir(self.join(*paths))
-        except: return None
-            
-    def show(self,*paths:str):
+        try:
+            return os.listdir(self.join(*paths))
+        except:
+            return None
+
+    def show(self, *paths: str):
         """
         Opens the file in your devices default editor. If filename is undefined it will open the scripts user folder.
 
@@ -187,17 +203,18 @@ class User():
         try:
             os.startfile(self.join(*paths))
             return True
-        except: return False
+        except:
+            return False
 
-    def get(self, *paths:str):
+    def get(self, *paths: str):
         """DEPRIVED: use .join() instead"""
         print('.get method is deprived! use .join instead')
         return self.join(*paths)
 
-    def download(self,package:str,filename:str=None):
+    def download(self, package: str, filename: str = None):
         """
         Download file from the web.
-        
+
         Arguments
         ---
         `package` - The URL to the package to download.
@@ -205,18 +222,19 @@ class User():
         `filename` - The filename of the package
         """
         r = requests.get(package, allow_redirects=True)
-        if filename==None:
+        if filename == None:
             filename = os.path.basename(package)
-        if r.status_code==200:
+        if r.status_code == 200:
             open(self.join(filename), 'wb').write(r.content)
             return self
         else:
-            raise PackageNotFoundError('Package returned status %s'%(r.status_code))
+            raise PackageNotFoundError(
+                'Package returned status %s' % (r.status_code))
 
-    def unarchive(self,src:str,dst:str=None, members:list=None, format:str=None, deletesrc:bool=True,trackcommand=None):
+    def unarchive(self, src: str, dst: str = None, members: list = None, format: str = None, deletesrc: bool = True, trackcommand=None):
         """
         Unarchive a zip or gz file. It's recomended to call this method in a thread.
-        
+
         Arguments
         ---
         `src` - The path to the archive
@@ -224,7 +242,7 @@ class User():
         `dst` - The destination to drop the unarchived folders.
 
         `members` - The members to unarchive. Will otherwise extract all members
-        
+
         `format` - The archive format. 'zip' or 'gz'
 
         `deletesrc` - Delete the orgional source file after it is done unarchiving.
@@ -240,52 +258,67 @@ class User():
         """
         src = self.join(src)
 
-        if dst==None: dst = self.path
-        else: dst = self.join(dst)
+        if dst == None:
+            dst = self.path
+        else:
+            dst = self.join(dst)
 
         # Get format
-        if format is None: # Auto detect format
-            if src.endswith('.zip'): format='ZIP'
-            elif src.endswith('.gz'): format='GZ'
-        else: format = format.upper()
+        if format is None:  # Auto detect format
+            if src.endswith('.zip'):
+                format = 'ZIP'
+            elif src.endswith('.gz'):
+                format = 'GZ'
+        else:
+            format = format.upper()
 
-        if format=='ZIP':
-            with zipfile.ZipFile(src,'r') as file:
-                if members is None:  MEMBERS = file.namelist()
-                else: MEMBERS = members
+        if format == 'ZIP':
+            with zipfile.ZipFile(src, 'r') as file:
+                if members is None:
+                    MEMBERS = file.namelist()
+                else:
+                    MEMBERS = members
                 total = len(MEMBERS)
 
-                count=1
+                count = 1
                 for member in MEMBERS:
                     file.extract(member, dst)
                     event = TrackEvent(member, count, total)
-                    if trackcommand!=None: trackcommand(event) 
-                    count+=1
+                    if trackcommand != None:
+                        trackcommand(event)
+                    count += 1
 
-            if deletesrc: os.remove(src)
+            if deletesrc:
+                os.remove(src)
             return True
 
-        elif format=='GZ':
+        elif format == 'GZ':
             with tarfile.open(src) as file:
-                if members is None: MEMBERS = file.getmembers()
-                else: MEMBERS = members
+                if members is None:
+                    MEMBERS = file.getmembers()
+                else:
+                    MEMBERS = members
                 total = len(MEMBERS)
 
-                count=1
+                count = 1
                 for member in MEMBERS:
                     event = TrackEvent(member, count, total)
-                    if trackcommand!=None: trackcommand(event)
+                    if trackcommand != None:
+                        trackcommand(event)
                     file.extract(member, dst)
-                    count+=1
+                    count += 1
 
                 file.close()
-            if deletesrc: os.remove(src)
+            if deletesrc:
+                os.remove(src)
             return True
         else:
-            raise UnsupportedArchiveError('Unsupported archive! Supported archive types: .zip, .gz')
+            raise UnsupportedArchiveError(
+                'Unsupported archive! Supported archive types: .zip, .gz')
+
 
 class Storage():
-    def __init__(self,user:User,filename:str):
+    def __init__(self, user: User, filename: str):
         """
         Create a file to store key/value pairs.
 
@@ -303,7 +336,7 @@ class Storage():
         self.file = user.join(filename)
         self.first = False
         # Create file
-        if os.path.exists(self.file)==False:
+        if os.path.exists(self.file) == False:
             wrt = self.user.open(self.file, 'w')
             wrt.write('')
             wrt.close()
@@ -312,37 +345,37 @@ class Storage():
         self.length = self.__len()
 
     def __len(self):
-        opn = self.user.open(self.file,'r')
+        opn = self.user.open(self.file, 'r')
         data = yaml.load(opn, yaml.FullLoader)
         opn.close()
-        if data!=None:
-            count=0
+        if data != None:
+            count = 0
             for i in data:
-                count+=1
+                count += 1
             return count
         else:
             return 0
 
-    def getItem(self,key:str):
+    def getItem(self, key: str):
         """
         Returns the current value associated with the given key, or null if the given key does not exist.
-        
+
         Arguments
         ---
         `key` - Get the value of the key
         """
-        opn = self.user.open(self.file,'r')
+        opn = self.user.open(self.file, 'r')
         data = yaml.load(opn, yaml.FullLoader)
         opn.close()
-        if data!=None:
+        if data != None:
             if str(key) in data:
                 return data[str(key)]
-            else: 
+            else:
                 raise KeyError(key)
         else:
             raise KeyError(key)
 
-    def setItem(self,key:str, value:str):
+    def setItem(self, key: str, value: str):
         """
         Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously.
 
@@ -352,39 +385,39 @@ class Storage():
 
         `value` - The value of the key to set
         """
-        opn = self.user.open(self.file,'r')
+        opn = self.user.open(self.file, 'r')
         data = yaml.load(opn, yaml.FullLoader)
         opn.close()
 
-        if data!=None:
+        if data != None:
             data[str(key)] = value
         else:
             data = {}
             data[str(key)] = value
 
-        wrt = self.user.open(self.file,'w')
+        wrt = self.user.open(self.file, 'w')
         wrt.write(yaml.dump(data))
         wrt.close()
 
-    def removeItem(self,key:str):
+    def removeItem(self, key: str):
         """
         Removes the key/value pair with the given key, if a key/value pair with the given key exists.
-        
+
         Arguments
         ---
         `key` - The key/value pair to remove.
         """
-        opn = self.user.open(self.file,'r')
+        opn = self.user.open(self.file, 'r')
         data = yaml.load(opn, yaml.FullLoader)
         opn.close()
 
-        if data!=None:
+        if data != None:
             if str(key) in data:
                 del data[str(key)]
             else:
                 raise KeyError(key)
 
-            wrt = self.user.open(self.file,'w')
+            wrt = self.user.open(self.file, 'w')
             wrt.write(yaml.dump(data))
             wrt.close()
 
@@ -392,11 +425,11 @@ class Storage():
         """
         Removes all key/value pairs, if there are any.
         """
-        wrt = self.user.open(self.file,'w')
+        wrt = self.user.open(self.file, 'w')
         wrt.write('')
         wrt.close()
 
-    def key(self,index:int):
+    def key(self, index: int):
         """
         Returns the name of the nth key, or None if n is greater than or equal to the number of key/value pairs.
 
@@ -404,12 +437,12 @@ class Storage():
         ---
         `index` - The index in the store to get the key from.
         """
-        opn = self.user.open(self.file,'r')
+        opn = self.user.open(self.file, 'r')
         data = yaml.load(opn, yaml.FullLoader)
         opn.close()
-        if data!=None:
+        if data != None:
             # get all keys in a list
-            keys=[]
+            keys = []
             for k in data:
                 keys.append(k)
             try:
@@ -419,7 +452,7 @@ class Storage():
         else:
             return None
 
-    def exists(self,key:str):
+    def exists(self, key: str):
         """
         Checks if key/value pair exists
 
@@ -430,7 +463,8 @@ class Storage():
         try:
             self.getItem(key)
             return True
-        except KeyError: return False
+        except KeyError:
+            return False
 
     def show(self):
         """
@@ -438,8 +472,9 @@ class Storage():
         """
         return os.startfile(self.file)
 
+
 class localStorage(Storage):
-    def __init__(self,user:User):
+    def __init__(self, user: User):
         """
         General storage class. Allows you to store key/values in the user folder
 
@@ -453,8 +488,9 @@ class localStorage(Storage):
         """
         super().__init__(user, 'localStorage.yaml')
 
+
 class sessionStorage(Storage):
-    def __init__(self,user:User):
+    def __init__(self, user: User):
         """
         Simlar to localStorage but gets cleared everytime the program starts
 
@@ -466,10 +502,11 @@ class sessionStorage(Storage):
         ---
         getItem, setItem, removeItem, clear, key, exists, show
         """
-        super().__init__(user, '.session/%s.yaml'%(uuid.uuid4().hex))
+        super().__init__(user, '.session/%s.yaml' % (uuid.uuid4().hex))
+
 
 class Config():
-    def __init__(self, user:User, section:str=None):
+    def __init__(self, user: User, section: str = 'DEFAULT'):
         """
         General config file for program settings
 
@@ -486,15 +523,18 @@ class Config():
         self.user = user
 
         # Default section is the user id
-        if section==None: self._section = self.user.id
-        else: self._section = section
+        if section == None:
+            self._section = self.user.id
+        else:
+            self._section = section
         self.file = user.join('.cfg')
         self.config = configparser.ConfigParser()
 
         # Create config file
-        if os.path.exists(self.file)==False:
+        if os.path.exists(self.file) == False:
             self._write()
-        else: self._read()
+        else:
+            self._read()
 
         # Create section if missing
         if section not in self.config:
@@ -511,17 +551,17 @@ class Config():
         with self.user.open('.cfg', 'w') as configfile:
             self.config.write(configfile)
 
-    def section(self, name:str='DEFAULT'):
+    def section(self, name: str = 'DEFAULT'):
         """
         The section in the config
-        
+
         Arguments
         ---
         `name` - The name of the section.
         """
         return Config(self.user, name)
 
-    def setItem(self, key:str, value:str):
+    def setItem(self, key: str, value: str):
         """
         Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously.
 
@@ -531,10 +571,10 @@ class Config():
 
         `value` - The value of the key to set.
         """
-        self.config.set(self._section, str(key), value)
+        self.config.set(self._section, str(key), str(value))
         self._write()
 
-    def getItem(self, key:str):
+    def getItem(self, key: str):
         """
         Returns the current value associated with the given key, or null if the given key does not exist.
 
@@ -544,10 +584,10 @@ class Config():
         """
         return self.config.get(self._section, str(key))
 
-    def removeItem(self, key:str):
+    def removeItem(self, key: str):
         """
         Removes the key/value pair
-        
+
         Arguments
         ---
         `key` - The key/value pair to remove.
@@ -556,48 +596,57 @@ class Config():
         self._write()
         return result
 
+
 def example():
     from time import sleep
 
-    def progress(e: TrackEvent): # Print the current status.
+    def progress(e: TrackEvent):  # Print the current status.
         percent = int(e.percentage)
         done = int(e.percentage/10)*5
         fill = 10*5 - done
 
-        if percent!=100: end='\r' # Print on same line until 100%
-        else: end=None
+        if percent != 100:
+            end = '\r'  # Print on same line until 100%
+        else:
+            end = None
 
-        print('Progress: |{0}{1}| {2}% Complete'.format('█'*done, '-'*fill, percent), end=end)
-        sleep(.5) # Slow down the progress so you can actually see the progress.
+        print('Progress: |{0}{1}| {2}% Complete'.format(
+            '█'*done, '-'*fill, percent), end=end)
+        # Slow down the progress so you can actually see the progress.
+        sleep(.5)
 
-    def setup(u:User): # Download all required files and packages
-        u.download('https://github.com/legopitstop/UserFolder/archive/refs/tags/v1.0.2.zip','package.zip')
+    def setup(u: User):  # Download all required files and packages
+        u.download(
+            'https://github.com/legopitstop/UserFolder/archive/refs/tags/v1.0.2.zip', 'package.zip')
         u.unarchive('package.zip', trackcommand=progress)
 
     user = User('_test', setup)
 
     # Config
     default = Config(user)
-    default.setItem('my_option', "fallback") # set fallback value. If my_option is missing this key it will use this value.
+    # set fallback value. If my_option is missing this key it will use this value.
+    default.setItem('my_option', "fallback")
 
     config = default.section('metadata')
     config.removeItem('my_option')
-    config.setItem('my_option', 'Hello World') # Comment me out to see fallback value
+    # Comment me out to see fallback value
+    config.setItem('my_option', 'Hello World')
 
-    print('my_option =',config.getItem('my_option'))
+    print('my_option =', config.getItem('my_option'))
 
     ls = localStorage(user)
     ss = sessionStorage(user)
 
-    if ls.exists('version')==False:
+    if ls.exists('version') == False:
         ls.setItem('version', __version__)
-    
-    print('version:',ls.getItem('version'))
+
+    print('version:', ls.getItem('version'))
     ss.setItem('key', 'test')
 
     print('Ready!')
 
     user.show()
+
 
 if __name__ == '__main__':
     example()

@@ -1,4 +1,4 @@
-# UserFolder - 1.1.0
+# UserFolder
 
 ## What is this?
 
@@ -20,7 +20,6 @@ This is a simple library that allows you to read, write and create files within 
 | Name | Descirption |
 |--|--|
 | [`requests`](https://pypi.org/project/requests/) | **Requests** is a simple, yet elegant, HTTP library. |
-| [`plyer`](https://pypi.org/project/plyer/) | Plyer is a platform-independent api to use features commonly found on various platforms, notably mobile ones, in Python. |
 | [`uuid`](https://pypi.org/project/uuid/) | UUID object and generation functions (Python 2.3 or higher) |
 
 ## License

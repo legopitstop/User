@@ -1,11 +1,16 @@
-# CHANGELOG v1.1.0
+## CHANGELOG v1.1.1
 
-## General
+### General
+- No longer using plyer as it does not work properly when converted to exe file.
+
+## CHANGELOG v1.1.0
+
+### General
 
 - User id will only use the following characters in regex:`[a-z._\-0-9]`. If the id contains an invalid character it will be removed, except for spaces that will be replaced with underscores.
 - Now uses `plyer` to get the user folder, which should make it more cross-platform friendly (only tested on Windows 10)
 
-## Changes
+### Changes
 
 - `User.open(file, mode)` Renamed `filename` arg to `file`
 - `User.list(*paths)` Renamed to `listdir(*path)`
@@ -14,7 +19,7 @@
   - `User.show(*paths)`
   - `User.get(*paths)` DEPFRIVED! use .join instead
 
-## New
+### New
 
 - `User.download(package, filename)`  Download file from the web.
 - `User.unarchive(src, dst)` Unarchive a zip or gz file.
