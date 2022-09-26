@@ -49,8 +49,9 @@ class User():
         """
         self._setup = setupcommand
         def trim(s:str): return re.sub(r'[^a-z._\-0-9]','',str(s).lower().strip().replace(' ','_'))
+        self.id = trim(id)
         ROOT = os.path.join(plyer.storagepath.get_home_dir(), '.python')
-        self.path = os.path.join(ROOT,trim(id))
+        self.path = os.path.join(ROOT,self.id)
 
         if os.path.isdir(self.path) == False:
             os.makedirs(self.path, exist_ok=True)
@@ -468,7 +469,7 @@ class sessionStorage(Storage):
         super().__init__(user, '.session/%s.yaml'%(uuid.uuid4().hex))
 
 class Config():
-    def __init__(self, user:User, section:str='DEFAULT'):
+    def __init__(self, user:User, section:str=None):
         """
         General config file for program settings
 
@@ -510,7 +511,7 @@ class Config():
         with self.user.open('.cfg', 'w') as configfile:
             self.config.write(configfile)
 
-    def section(self, name:str):
+    def section(self, name:str='DEFAULT'):
         """
         The section in the config
         

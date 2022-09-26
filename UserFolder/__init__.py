@@ -1,1 +1,1 @@
-from UserFolder.User import User
+from UserFolder.User import User, Storage, Config, localStorage, sessionStorage
