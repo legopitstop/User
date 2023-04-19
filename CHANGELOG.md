@@ -1,3 +1,45 @@
+## CHANGELOG v1.2.0
+
+### General
+- Improved method docs
+- Added `ConfigDialog` class which is a tkinter Toplevel window that shows all the configureable options
+- Added `Config.exists(key)` method
+- Added `Cache` class for caching any file.
+- Added get methods that will return the root class.
+  - getUser
+  - getConfig
+  - getSessionStorage
+  - getLocalStorage
+  - getCache
+
+### Changes
+#### UserFolder.User
+- Added 'path' argument so you can define the custom user path. default `C:\Users\<user>\.python\<id>`
+    - Note that defining the custom path will not include ID at the end
+- `id` is now optional, if unset it will use a sha1 of the filename.
+
+#### UserFolder.Config
+- `user` arg is optional. When undefined it will use the root user
+- Define a custom path for the user folder using `path`. If set to "%appdata%" it will use the AppData/Roaming folder instead.
+- Added `.registerItem` method.
+- Added atlas names for the following methods
+    - `.set()` => `.setItem()`
+    - `.get()` => `.getItem()`
+    - `.remove()` => `.removeItem()`
+- `.getItem()` has a new argument "default". If the key is not defined in the config it will return this value. default: None
+
+#### UserFolder.Storage
+- `user` arg is optional. When undefined it will use the root user
+- `filename` arg is optional. default: "storage.yaml"
+- Added atlas names for the following methods
+    - `.set()` => `.setItem()`
+    - `.get()` => `.getItem()`
+    - `.remove()` => `.removeItem()`
+
+#### UserFolder.sessionStorage
+- When the script ends it will now remove all session storages.
+
+
 ## CHANGELOG v1.1.1
 
 ### General

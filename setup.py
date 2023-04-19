@@ -7,7 +7,7 @@ required_modules = ["requests"]
 
 setuptools.setup(
     name='UserFolder',
-    version='1.1.1',
+    version='1.2.0',
     author='Legopitstop',
     description='This library allows you to write and save files to the users folder. Useful for when you convert this script to a onefile exe program.',
     long_description=long_description,
@@ -26,5 +26,5 @@ setuptools.setup(
         'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python :: 3.9',
     ],
-    python_requires='>=3.6'
+    python_requires='>=3.11'
 )

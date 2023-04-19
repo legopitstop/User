@@ -2,8 +2,9 @@ LICENSE.md
 README.md
 setup.cfg
 setup.py
-UserFolder/User.py
 UserFolder/__init__.py
+UserFolder/ctkdialog.py
+UserFolder/dialog.py
 UserFolder.egg-info/PKG-INFO
 UserFolder.egg-info/SOURCES.txt
 UserFolder.egg-info/dependency_links.txt
