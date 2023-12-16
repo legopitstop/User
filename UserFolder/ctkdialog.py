@@ -9,6 +9,8 @@ from enum import EnumMeta
 from . import Config, getConfig
 from .dialog import ConfigDialogEvent
 
+__all__ = ['CTkConfigDialog']
+
 class CTkConfigDialog(CTkToplevel):
     def __init__(self, config:Config=None, parent=None):
         if config is None: config = getConfig()

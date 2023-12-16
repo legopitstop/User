@@ -1,3 +1,7 @@
+"""
+This is a simple library that allows you to read, write and create files within your own folder inside the user folder (`C:/User/USER/.python/PACKAGE_ID`)
+"""
+from typing import Self
 from io import TextIOWrapper
 import os
 import requests
@@ -16,6 +20,22 @@ import tempfile
 __version__ = '1.2.0'
 __temp__ = []
 __root__ = {'sessionStorage': [], 'cache': []}
+__all__ = ['UnsupportedArchiveError', 'CacheError',
+           'TrackEvent',
+           'User',
+           'Storage',
+           'localStorage',
+           'sessionStorage',
+           'Config',
+           'Cache',
+           'getUser',
+           'getConfig',
+           'getSessionStorage',
+           'getCache',
+           'getLocalStorage',
+           'ctkdialog',
+           'dialog'
+]
 
 class UnsupportedArchiveError(Exception): pass
 class CacheError(Exception): pass
@@ -23,15 +43,14 @@ class CacheError(Exception): pass
 class TrackEvent():
     def __init__(self, member: zipfile.ZipInfo, count: int, total: int):
         """
-        The track event returned by trackcommand.
+        The track event returned by trackcommand
 
-        Arguments
-        ---
-        `member` - The Zip.Info or filename
-
-        `count` - The current member of total
-
-        `total` - The total number of members
+        :param member: The Zip.Info or filename
+        :type member: zipfile.ZipInfo
+        :param count: The current member of total
+        :type count: int
+        :param total:  The total number of members
+        :type total: int
         """
         self.member = member
         self.count = count
@@ -147,26 +166,20 @@ class User():
         """
         Join user path
 
-        Arguments
-        ---
-        `paths` - A list of each folder in path
-
-        Returns
-        ---
-        str - The combined user path
+        :param paths: A list of each folder in path
+        :type paths: A list of each folder in path
+        :return: The joined path
+        :rtype: str
         """
         return os.path.join(self.path, *paths)
     get = join
 
     def uninstall(self) -> bool:
         """
-        Will delete the scripts user folder.
+        Will delete the scripts user folder
 
-        Returns
-        ---
-        `True` - Successfully deleted the scripts user folder.
-
-        `False` - Failed to delete the scripts user folder, A file is still being prossessed.
+        :return: true - successfully deleted the scripts user folder, false - failed to delete scripts user folder (A file is still being prossessed)
+        :rtype: bool
         """
         try:
             for filename in self.list():
@@ -178,17 +191,12 @@ class User():
 
     def exists(self, *paths: str) -> bool:
         """
-        Checks if the file exists inside the scripts user folder.
+        Checks if the file exists inside the scripts user folder
 
-        Arguments
-        ---
-        `paths` - A list of each folder in path
-
-        Returns
-        ---
-        `True` - The file exists.
-
-        `False` - The file does not exist.
+        :param paths: A list of each folder in path
+        :type paths: str
+        :return: true - The file exists, false - The file does not exist
+        :rtype: bool
         """
         try:
             if os.path.exists(self.join(*paths)):
@@ -200,17 +208,14 @@ class User():
 
     def open(self, file: str, mode: str = 'r') -> TextIOWrapper:
         """
-        Opens the file that is in the scripts user folder.
+        Opens the file that is in the scripts user folder
 
-        Arguments
-        ---
-        `file` - A list of each folder in path
-
-        `mode` - The mode to open this file in
-
-        Returns
-        ---
-        TextIOWrapper - The contents of the file.
+        :param file: A list of each folder in path
+        :type file: str
+        :param mode: The mode to open this file in, defaults to 'r'
+        :type mode: str, optional
+        :return: The contents of the file
+        :rtype: TextIOWrapper
 
         Character	Meaning
         ---
@@ -247,17 +252,12 @@ class User():
 
     def listdir(self, *paths: str) -> list[str]|None:
         """
-        Returns a list of all files that are in the scripts users folder.
+        Returns a list of all files that are in the scripts users folder
 
-        Arguments
-        ---
-        `paths` - A list of each folder in path
-
-        Returns
-        ---
-        list[str] - A list of all files that are currently inside the scripts user folder.
-
-        `None` - Failed to list the directory
+        :param paths: A list of each folder in path
+        :type paths: str
+        :return: list[str] - A list of all files that are currently inside the scripts user folder, None - Failed to list the directory
+        :rtype: list[str]|None
         """
         try:
             return os.listdir(self.join(*paths))
@@ -266,17 +266,12 @@ class User():
 
     def show(self, *paths: str) -> bool:
         """
-        Opens the file in your devices default editor. If filename is undefined it will open the scripts user folder.
+        Opens the file in your devices default editor. If filename is undefined it will open the scripts user folder
 
-        Arguments
-        ---
-        `paths` - A list of each folder in path
-
-        Returns
-        ---
-        `True` - Successfully showed the file or folder.
-
-        `False` - Failed to show file or folder.
+        :param paths: A list of each folder in path
+        :type paths: str
+        :return: true - successfully showed the file or folder, false - failed to show file or folder
+        :rtype: bool
         """
         try:
             os.startfile(self.join(*paths))
@@ -286,21 +281,18 @@ class User():
 
     def download(self, package: str, filename: str = None, trackcommand=None, thread:bool=False) -> requests.Response:
         """
-        Download file from the web. If request returns status code '404' it will not download the file.
+        Download file from the web. If request returns status code '404' it will not download the file
 
-        Arguments
-        ---
-        `package` - The URL to the package to download.
-
-        `filename` - The filename of the package.
-
-        `trackcommand` - The callback command for downloading the file.
-        
-        `thread` - If true it will run in a new thread.
-
-        Returns
-        ---
-        requests.Response - Response from the download.
+        :param package: The URL to the package to download
+        :type package: str
+        :param filename: The filename of the package, defaults to None
+        :type filename: str, optional
+        :param trackcommand: The callback command for downloading the file, defaults to None
+        :type trackcommand: Function, optional
+        :param thread: If true it will run in a new thread, defaults to False
+        :type thread: bool, optional
+        :return: Response from the download
+        :rtype: requests.Response
         """
         if thread:
             t = threading.Thread(target=self._download, args=[package, filename, trackcommand])
@@ -309,30 +301,26 @@ class User():
 
     def unarchive(self, src: str, dst: str = None, members: list = None, format: str = None, deletesrc: bool = True, trackcommand=None, thread:bool=False) -> bool:
         """
-        Unarchive a zip or gz file. It's recomended to call this method in a thread.
+        Unarchive a zip or gz file. It's recomended to call this method in a thread
 
-        Arguments
-        ---
-        `src` - The path to the archive
-
-        `dst` - The destination to drop the unarchived folders.
-
-        `members` - The members to unarchive. Will otherwise extract all members
-
-        `format` - The archive format. 'zip' or 'gz'
-
-        `deletesrc` - Delete the orgional source file after it is done unarchiving.
-
-        `trackcommand` - The callback command for every member in archive.
-        
-        `thread` - If true it will run in a new thread.
-
-        Returns
-        ---
-        `True` - Successfully unarchived package.
-
-        `False` - Failed to unarchive package
+        :param src: The path to the archive
+        :type src: str
+        :param dst: The destination to drop the unarchived folders, defaults to None
+        :type dst: str, optional
+        :param members: The members to unarchive. Will otherwise extract all members, defaults to None
+        :type members: list, optional
+        :param format: The archive format. 'zip' or 'gz', defaults to None
+        :type format: str, optional
+        :param deletesrc: Delete the orgional source file after it is done unarchiving, defaults to True
+        :type deletesrc: bool, optional
+        :param trackcommand: The callback command for every member in archive, defaults to None
+        :type trackcommand: _type_, optional
+        :param thread: If true it will run in a new thread, defaults to False
+        :type thread: bool, optional
+        :return: true - successfully unarchived package, false - failed to unarchive package
+        :rtype: bool
         """
+       
         
         if thread:
             t = threading.Thread(target=self._unarchive, args=[src, dst, members, format, deletesrc, trackcommand])
@@ -340,19 +328,19 @@ class User():
         else:
             self._unarchive(src, dst, members, format, deletesrc, trackcommand)
 
-    def copy(self, src:str, dst:str, delete_src:bool=False, delete_files:bool=False):
+    def copy(self, src:str, dst:str, delete_src:bool=False, delete_files:bool=False) -> Self:
         """
         Copy a file or directory from src to dst
-        
-        Arguments
-        ---
-        `src` - The source path to copy
 
-        `dst` - The destination path to paste the source path.
-
-        `delete_src` - When true it will delete the source path.
-
-        `delete_files` - Delete all files in directory. (Can only delete empty directories).
+        :param src: The source path to copy
+        :type src: str
+        :param dst: The destination path to paste the source path
+        :type dst: str
+        :param delete_src: When true it will delete the source path, defaults to False
+        :type delete_src: bool, optional
+        :param delete_files: Delete all files in directory. (Can only delete empty directories), defaults to False
+        :type delete_files: bool, optional
+        :rtype: User
         """
         _src = self.join(src)
         _dst = self.join(dst)
@@ -369,15 +357,15 @@ class User():
         if delete_src: self.remove(_src, delete_files)
         return self
 
-    def remove(self, path:str, delete_files:bool=False):
+    def remove(self, path:str, delete_files:bool=False) -> Self:
         """
-        Removes a directory or a file from the UserFolder.
-        
-        Arguments
-        ---
-        `path` - The file or directory to delete.
+        Removes a directory or a file from the UserFolder
 
-        `delete_files` - Delete all files in directory. (Can only delete empty directories).
+        :param path: The file or directory to delete
+        :type path: str
+        :param delete_files: Delete all files in directory. (Can only delete empty directories), defaults to False
+        :type delete_files: bool, optional
+        :rtype: User
         """
         _path = self.join(path)
         if os.path.isfile(_path):
@@ -394,20 +382,15 @@ class User():
 class Storage():
     def __init__(self, user: User = None, filename: str = 'storage.yaml'):
         """
-        Create a file to store key/value pairs.
+        Create a file to store key/value pairs
 
-        Arguments
-        ---
-        `user` - The User class for the storage.
-
-        `filename` - The name of the file to store all values.
-
-        Methods
-        ---
-        getItem, setItem, removeItem, clear, key, exists, show
+        :param user: The User class for the storage, defaults to None
+        :type user: User, optional
+        :param filename: The name of the file to store all values, defaults to 'storage.yaml'
+        :type filename: str, optional
         """
         if user is None:
-            user = getUser()
+            user = get_user()
         self.user = user
         self.filename = filename
         self.file = user.join(filename)
@@ -437,13 +420,13 @@ class Storage():
         else:
             return 0
 
-    def getItem(self, key: str):
+    def get_item(self, key: str):
         """
-        Returns the current value associated with the given key, or null if the given key does not exist.
+        The current value associated with the given key, or null if the given key does not exist.
 
-        Arguments
-        ---
-        `key` - Get the value of the key
+        :param key: Get the value of the key
+        :type key: str
+        :rtype: Any
         """
         opn = self.user.open(self.file, 'r')
         data = yaml.load(opn, yaml.FullLoader)
@@ -455,17 +438,17 @@ class Storage():
                 raise KeyError(key)
         else:
             raise KeyError(key)
-    get = getItem
+    get = get_item
 
-    def setItem(self, key: str, value: str):
+    def set_item(self, key: str, value: str) -> Self:
         """
-        Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously.
+        Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously
 
-        Arguments
-        ---
-        `key` - The key to set
-
-        `value` - The value of the key to set
+        :param key: The key to set
+        :type key: str
+        :param value: The value of the key to set
+        :type value: str
+        :rtype: Storage
         """
         opn = self.user.open(self.file, 'r')
         data = yaml.load(opn, yaml.FullLoader)
@@ -481,15 +464,15 @@ class Storage():
         wrt.write(yaml.dump(data))
         wrt.close()
         return self
-    set = setItem
+    set = set_item
 
-    def removeItem(self, key: str):
+    def remove_item(self, key: str) -> Self:
         """
-        Removes the key/value pair with the given key, if a key/value pair with the given key exists.
+        Removes the key/value pair with the given key, if a key/value pair with the given key exists
 
-        Arguments
-        ---
-        `key` - The key/value pair to remove.
+        :param key: The key/value pair to remove
+        :type key: str
+        :rtype: Storage
         """
         opn = self.user.open(self.file, 'r')
         data = yaml.load(opn, yaml.FullLoader)
@@ -505,11 +488,13 @@ class Storage():
             wrt.write(yaml.dump(data))
             wrt.close()
         return self
-    remove = removeItem
+    remove = remove_item
 
-    def clear(self):
+    def clear(self) -> Self:
         """
-        Removes all key/value pairs, if there are any.
+        Removes all key/value pairs, if there are any
+
+        :rtype: Storage
         """
         wrt = self.user.open(self.file, 'w')
         wrt.write('')
@@ -518,17 +503,12 @@ class Storage():
 
     def key(self, index: int) -> str|None:
         """
-        Returns the name of the nth key, or None if n is greater than or equal to the number of key/value pairs.
+        Returns the name of the nth key, or None if n is greater than or equal to the number of key/value pairs
 
-        Arguments
-        ---
-        `index` - The index in the store to get the key from.
-
-        Returns
-        ---
-        str - Name of the key
-
-        None - Index out of bounds error
+        :param index: The index in the store to get the key from
+        :type index: int
+        :return: str - Name of the key, None - Index out of bounds error
+        :rtype: str|None
         """
         opn = self.user.open(self.file, 'r')
         data = yaml.load(opn, yaml.FullLoader)
@@ -545,13 +525,13 @@ class Storage():
         else:
             return None
 
-    def exists(self, key: str):
+    def exists(self, key: str) -> bool:
         """
         Checks if key/value pair exists
 
-        Arguemnts
-        ---
-        `key` - The key to test for
+        :param key: The key to test for
+        :type key: str
+        :rtype: bool
         """
         try:
             self.getItem(key)
@@ -559,14 +539,20 @@ class Storage():
         except KeyError:
             return False
 
-    def show(self):
+    def show(self) -> None:
         """
         Open the storage file
+
+        :rtype: None
         """
         return os.startfile(self.file)
 
-    def destroy(self):
-        """Delete this storage file"""
+    def destroy(self) -> Self:
+        """
+        Delete this storage file
+
+        :rtype: Storage
+        """
         try: self.user.remove(self.file)
         except OSError: pass
         del self
@@ -576,13 +562,8 @@ class localStorage(Storage):
         """
         General storage class. Allows you to store key/values in the user folder
 
-        Arguments
-        ---
-        `user` - The User class for the local storage.
-
-        Methods
-        ---
-        getItem, setItem, removeItem, clear, key, exists, show
+        :param user: The User class for the local storage, defaults to None
+        :type user: User, optional
         """
         super().__init__(user, 'localStorage.yaml')
         global __root__
@@ -593,13 +574,8 @@ class sessionStorage(Storage):
         """
         Simlar to localStorage but gets cleared everytime the program starts
 
-        Arguments
-        ---
-        `user` - The User class for the session storage.
-
-        Methods
-        ---
-        getItem, setItem, removeItem, clear, key, exists, show
+        :param user: The User class for the session storage, defaults to None
+        :type user: User, optional
         """
         super().__init__(user, '.session/%s.yaml' % (uuid.uuid4().hex))
 
@@ -611,17 +587,12 @@ class Config():
         """
         General config file for program settings
 
-        Arguments
-        ---
-        `user` - The User class for the config.
-
-        `section` - Teh configs section. default value; DEFAULT
-
-        Methods
-        ---
-        section, setItem, getItem, removeItem, registerItem, unregisterItem
+        :param user: The User class for the config, defaults to None
+        :type user: User, optional
+        :param section: The configs section, defaults to None
+        :type section: str, optional
         """
-        if user is None: user = getUser()
+        if user is None: user = get_user()
         self.user = user
         self.registry = {}
 
@@ -655,51 +626,47 @@ class Config():
         with self.user.open('.cfg', 'w') as configfile:
             self.config.write(configfile)
 
-    def section(self, name:str):
+    def section(self, name:str) -> Self:
         """
         The section in the config
 
-        Arguments
-        ---
-        `name` - The name of the section.
+        :param name: The name of the section
+        :type name: str
+        :return: The config section
+        :rtype: Config
         """
         return Config(self.user, name)
 
     def exists(self, key: str) -> bool:
         """
         Checks if the key is already defined
-        
-        Arguments
-        ---
-        `key` - The key to check.
 
-        Returns
-        ---
-        `True` - Exists
-
-        `False` - Does not exist
+        :param key: The key to check
+        :type key: str
+        :return: true - exists, false - does not exist
+        :rtype: bool
         """
         return str(key) in self.config.keys()
 
-    def registerItem(self, key:str, default=None, datatype=None, title: str = None, description: str = None, from_: float = None, to: float = None):
+    def register_item(self, key:str, default=None, datatype=None, title: str = None, description: str = None, from_: float = None, to: float = None) -> Self:
         """
-        Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously.
+        Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously
 
-        Arguemnts
-        ---
-        `key` - The key to set
-
-        `default` - The fallback value to use.
-
-        `datatype` - The datatype to use for this value.
-
-        `title` - Title of this option.
-
-        `description` - Description about this option.
-
-        `from_` - The minimum allowed value.
-
-        `to` - The maximum allowed value.
+        :param key: The key to set
+        :type key: str
+        :param default: The fallback value to use, defaults to None
+        :type default: _type_, optional
+        :param datatype: The datatype to use for this value, defaults to None
+        :type datatype: _type_, optional
+        :param title: Title of this option, defaults to None
+        :type title: str, optional
+        :param description: Description about this option, defaults to None
+        :type description: str, optional
+        :param from_: The minimum allowed value, defaults to None
+        :type from_: float, optional
+        :param to: The maximum allowed value, defaults to None
+        :type to: float, optional
+        :rtype: Config
         """
         self.registry[str(key)] = {'title': title, 'description': description, 'datatype': datatype, 'from_': from_, 'to': to}
         try: self.config.get('DEFAULT',key)
@@ -708,73 +675,77 @@ class Config():
             self._write()
         return self
 
-    def unregisterItem(self, key:str):
+    def unregister_item(self, key:str):
         """
         Removes this item from the registry
-        
-        Arguments
-        ---
-        `key` - The key to remove
+
+        :param key: The key to remove
+        :type key: str
+        :return: The removed registry item
+        :rtype: _type_
         """
         return self.registry.pop(key)
 
-    def setItem(self, key: str, value):
+    def set_item(self, key: str, value) -> Self:
         """
-        Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously.
+        Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously
 
-        Arguemnts
-        ---
-        `key` - The key to set
-
-        `value` - The value of the key to set.
+        :param key: The key to set
+        :type key: str
+        :param value: The value of the key to set
+        :type value: Any
+        :rtype: Config
         """
         # Validate
         self.config.set(self._section, str(key), str(value))
         self._write()
         return self
-    set = setItem
+    set = set_item
 
-    def getItem(self, key: str, default=None):
+    def get_item(self, key: str, default=None):
         """
-        Returns the current value associated with the given key, or null if the given key does not exist.
+        Returns the current value associated with the given key, or null if the given key does not exist
 
-        Arguments
-        ---
-        `key` - The key/value pair to get.
-
-        `default` - The value to return if the option cannot be found.
+        :param key: The key/value pair to get
+        :type key: str
+        :param default: The value to return if the option cannot be found, defaults to None
+        :type default: Any, optional
+        :rtype: Any
         """
         try: return self.config.get(self._section, str(key))
         except configparser.NoOptionError: return default
-    get = getItem
+    get = get_item
 
-    def removeItem(self, key: str) -> bool:
+    def remove_item(self, key: str) -> bool:
         """
         Removes the key/value pair
 
-        Arguments
-        ---
-        `key` - The key/value pair to remove.
+        :param key: The key/value pair to remove
+        :type key: str
+        :rtype: bool
         """
         result = self.config.remove_option(self._section, str(key))
         self._write()
         return result
-    remove = removeItem
+    remove = remove_item
 
 class Cache():
     def __init__(self, id:str=None, user:User=None, root_path:str=None):
         """
-        Cache any file.
+        Cache any file
 
-        Methods
-        ---
-        exists, key, add_file, add_directory, remove_file, get_file
+        :param id: The id of this cache, defaults to None
+        :type id: str, optional
+        :param user: The user that this cache is for, defaults to None
+        :type user: User, optional
+        :param root_path: The root path, defaults to None
+        :type root_path: str, optional
         """
         global __root__
         if id is None: id = len(__root__['cache'])
         self.id = id
 
-        if user is None: user = getUser()
+        if user is None: user = get_user()
         self.user = user
 
         if root_path is None: root_path = os.path.expanduser('~')
@@ -808,40 +779,34 @@ class Cache():
     def exists(self, *path:str) -> bool:
         """
         Checks if the file is already cached
-        
-        Arguments
-        ---
-        `path` - Path to test.
 
-        Returns
-        ---
-        `True` - Cached
-
-        `False` - Not cached
+        :return: true - cached, false - not cached
+        :rtype: bool
         """
         fp = self.key(*path)
         return fp in self.objects
 
-    def key(self, *path) -> str:
+    def key(self, *path:str) -> str:
         """
         Returns the index key from the path
-        
-        Arguments
-        ---
-        `path` - The full path to the file.
+
+        :param path: The full path to the file
+        :type path: str
+        :return: _description_
+        :rtype: str
         """
         rep = os.path.join(*path).replace('\\', '/').replace(self.root_path, '')
         return re.sub(r'^[a-zA-Z]:', '', rep)
 
-    def add_file(self, *path:str, rewrite:bool=False):
+    def add_file(self, *path:str, rewrite:bool=False) -> Self:
         """
         Add file to cache
-        
-        Arguments
-        ---
-        `path` - The file to cache
 
-        `rewrite` - When true it will re-cache this file even if its already cached.
+        :param rewrite: The file to cache
+        :type rewrite: str
+        :param rewrite: When true it will re-cache this file even if its already cached, defaults to False
+        :type rewrite: bool, optional
+        :rtype: Cache
         """
         fp = os.path.join(*path)
         if os.path.exists(fp) and os.path.isfile(fp):
@@ -863,15 +828,15 @@ class Cache():
         else: raise CacheError(f"No such file: '{fp}'")
         return self
 
-    def add_directory(self, *path:str, rewrite:bool=False):
+    def add_directory(self, *path:str, rewrite:bool=False) -> Self:
         """
-        Add all files in directory to cache.
-        
-        Arguments
-        ---
-        `path` - The directory to cache
+        Add all files in directory to cache
 
-        `rewrite` - When true it will re-cache this directory even if its already cached.
+        :param path: The directory to cache
+        :type path: str
+        :param rewrite:  When true it will re-cache this directory even if its already cached, defaults to False
+        :type rewrite: bool, optional
+        :rtype: Cache
         """
         p = os.path.join(*path)
         if os.path.exists(p) and os.path.isdir(p):
@@ -882,13 +847,13 @@ class Cache():
         else: raise CacheError(f"No such directory: '{os.path.join(*path)}'")
         return self
 
-    def remove_file(self, *path):
+    def remove_file(self, *path:str) -> Self:
         """
-        Delete a file from cache.
+        Delete a file from cache
 
-        Arguments
-        ---
-        `path` - The file to delete from cache.
+        :param path: The file to delete from cache
+        :type path: str
+        :rtype: Cache
         """
         key = self.key(*path)
         index = self.objects.get(key)
@@ -900,13 +865,14 @@ class Cache():
         else: raise CacheError(f"No such file: '{os.path.join(*path)}'")
         return self
     
-    def get_file(self, *path) -> str:
+    def get_file(self, *path:str) -> str:
         """
-        Returns a temp file path.
+        Returns a temp file path
 
-        Arguments
-        ---
-        `path` - The file to get from cache.
+        :param path: The file to get from cache.
+        :type path: str
+        :return: The name of the file
+        :rtype: str
         """
         key = self.key(*path)
         index = self.objects.get(key)
@@ -925,7 +891,7 @@ class Cache():
 
 def _cleanup():
     # destroy sessionStorage
-    stores = getSessionStorage(False)
+    stores = get_session_storage(False)
     if stores is not None:
         for store in stores: store.destroy()
 
@@ -937,65 +903,65 @@ def _cleanup():
 
 atexit.register(_cleanup)
 
-def getUser(create: bool=True) -> User|None:
-    """"
-    Returns the root user. If not defined it will create a user
+def get_user(create: bool=True) -> User|None:
+    """
+    The root user. If not defined it will create a user
 
-    Arguments
-    ---
-    `create` - If no user can be found create one.
+    :param create: If no user can be found create one, defaults to True
+    :type create: bool, optional
+    :rtype: User|None
     """
     if __root__.get('user') is not None:
         return __root__['user']
     if create: return User()
     return None
 
-def getConfig(create: bool=True) -> Config|None:
+def get_config(create: bool=True) -> Config|None:
     """
-    Returns the root config. If not defined it will create the config
+    The root config. If not defined it will create the config
 
-    Arguments
-    ---
-    `create` - If no config can be found create one.
+    :param create: If no config can be found create one, defaults to True
+    :type create: bool, optional
+    :rtype: Config|None
     """
     if __root__.get('config') is not None:
         return __root__['config']
     if create: return Config()
     return None
 
-def getSessionStorage(create: bool=True) -> list[sessionStorage]|None:
+def get_session_storage(create: bool=True) -> list[sessionStorage]|None:
     """
-    Returns the root session storage. If not defined it will create one
+    The root session storage. If not defined it will create one
 
-    Arguments
-    ---
-    `create` - If no storage can be found create one.
+    :param create: If no storage can be found create one, defaults to True
+    :type create: bool, optional
+    :rtype: list[sessionStorage]|None
     """
     if __root__.get('sessionStorage') is not None and len(__root__['sessionStorage'])>=1:
         return __root__['sessionStorage']
     if create: return sessionStorage()
     return None
 
-def getCache(create:bool=True) -> list[Cache]|None:
+def get_cache(create:bool=True) -> list[Cache]|None:
     """
-    Returns the root cache. If not defined it will create one.
+    The root cache. If not defined it will create one.
 
-    Arguments
-    ---
-    `create` - If no cache can be found create one.
+    :param create: If no cache can be found create one, defaults to True
+    :type create: bool, optional
+    :rtype: list[Cache]|None
     """
     if __root__.get('cache') is not None and len(__root__['cache'])>=1:
         return __root__['cache']
     if create: return Cache()
     return None
 
-def getLocalStorage(create: bool=True) -> localStorage|None:
+def get_local_storage(create: bool=True) -> localStorage|None:
     """
-    Returns the root local storage. If not defined it will create one
+    The root local storage. If not defined it will create one
 
-    Arguments
-    ---
-    `create` - If no storage can be found create one.
+    :param create: If no storage can be found create one, defaults to True
+    :type create: bool, optional
+    :rtype: localStorage|None
     """
     if __root__.get('localStorage') is not None:
         return __root__['localStorage']

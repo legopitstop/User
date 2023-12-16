@@ -1,6 +1,6 @@
-import customtkinter
+import tkinter
 import UserFolder
-from UserFolder import ctkdialog
+from UserFolder import dialog
 from enum import Enum
 
 user = UserFolder.User('_test')
@@ -20,9 +20,9 @@ config.registerItem('option4', 1.0, float, 'Option4', 'Float config item', from_
 config.registerItem('option5', 50, range, 'Option5', 'Range config item')
 config.registerItem('option6', values.item1, values, 'Option6', 'Enum config item')
 
-root = customtkinter.CTk()
+root = tkinter.Tk()
 root.title('Main Window')
 root.minsize(500, 500)
-customtkinter.CTkButton(root, text='Open ConfigDialog', command=lambda: ctkdialog.CTkConfigDialog(parent=root)).pack()
-customtkinter.CTkButton(root, text='Open User Folder', command=user.show).pack()
+tkinter.Button(root, text='Open ConfigDialog', command=lambda: dialog.ConfigDialog(parent=root)).pack()
+tkinter.Button(root, text='Open User Folder', command=user.show).pack()
 root.mainloop()

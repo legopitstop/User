@@ -5,6 +5,8 @@ from enum import EnumMeta
 
 from . import Config, getConfig
 
+__all__ = ['ConfigDialogEvent', 'ConfigDialog']
+
 @dataclasses.dataclass
 class ConfigDialogEvent():
     toplevel: tkinter.Toplevel

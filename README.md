@@ -1,8 +1,19 @@
 # UserFolder
 
-## What is this?
+[![PyPI](https://img.shields.io/pypi/v/userfolder)](https://pypi.org/project/userfolder/)
+[![Python](https://img.shields.io/pypi/pyversions/userfolder)](https://www.python.org/downloads//)
+![Downloads](https://img.shields.io/pypi/dm/UserFolder)
+![Status](https://img.shields.io/pypi/status/UserFolder)
+[![Issues](https://img.shields.io/github/issues/legopitstop/UserFolder)](https://github.com/legopitstop/UserFolder/issues)
 
 This is a simple library that allows you to read, write and create files within your own folder inside the user folder (`C:/User/USER/.python/PACKAGE_ID`)
+
+## Installation
+Install the module with pip:
+```bat
+pip3 install UserFolder
+```
+Update existing installation: `pip3 install UserFolder --upgrade`
 
 ## Features
 
@@ -10,10 +21,6 @@ This is a simple library that allows you to read, write and create files within 
 - Read and write to files inside the User folder.
 - Includes an uninstall function that will delete all files inside your directory.
 - A function to open the directory or open the file that is inside the directory.
-
-## Install
-
-`pip install UserFolder`
 
 ## Requirements
 

@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UserFolder &mdash; UserFolder 1.2.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=6efca38a"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            UserFolder
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">UserFolder</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">UserFolder</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">UserFolder</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for UserFolder</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This is a simple library that allows you to read, write and create files within your own folder inside the user folder (`C:/User/USER/.python/PACKAGE_ID`)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Self</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">TextIOWrapper</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">tarfile</span>
+<span class="kn">import</span> <span class="nn">zipfile</span>
+<span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">import</span> <span class="nn">configparser</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">atexit</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+
+<span class="n">__version__</span> <span class="o">=</span> <span class="s1">&#39;1.2.0&#39;</span>
+<span class="n">__temp__</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">__root__</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;sessionStorage&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;cache&#39;</span><span class="p">:</span> <span class="p">[]}</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;UnsupportedArchiveError&#39;</span><span class="p">,</span> <span class="s1">&#39;CacheError&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;TrackEvent&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;User&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;Storage&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;localStorage&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;sessionStorage&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;Config&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;Cache&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;getUser&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;getConfig&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;getSessionStorage&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;getCache&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;getLocalStorage&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;ctkdialog&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;dialog&#39;</span>
+<span class="p">]</span>
+
+<div class="viewcode-block" id="UnsupportedArchiveError">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.UnsupportedArchiveError">[docs]</a>
+<span class="k">class</span> <span class="nc">UnsupportedArchiveError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span> <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="CacheError">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.CacheError">[docs]</a>
+<span class="k">class</span> <span class="nc">CacheError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span> <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="TrackEvent">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.TrackEvent">[docs]</a>
+<span class="k">class</span> <span class="nc">TrackEvent</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">member</span><span class="p">:</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipInfo</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">total</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The track event returned by trackcommand</span>
+
+<span class="sd">        :param member: The Zip.Info or filename</span>
+<span class="sd">        :type member: zipfile.ZipInfo</span>
+<span class="sd">        :param count: The current member of total</span>
+<span class="sd">        :type count: int</span>
+<span class="sd">        :param total:  The total number of members</span>
+<span class="sd">        :type total: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">member</span> <span class="o">=</span> <span class="n">member</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="n">count</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total</span> <span class="o">=</span> <span class="n">total</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">percentage</span> <span class="o">=</span> <span class="n">count</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">/</span> <span class="n">total</span></div>
+
+
+<div class="viewcode-block" id="User">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User">[docs]</a>
+<span class="k">class</span> <span class="nc">User</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setupcommand</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Will create the file path inside the Users folder. Your id should be a unique string just for your script.</span>
+
+<span class="sd">        Arguments</span>
+<span class="sd">        ---</span>
+<span class="sd">        `id` - The uuid of the project. Recomended to use a backwords url: &#39;com.username.project_name&#39;</span>
+
+<span class="sd">        `setupcommand` - Runs the first time the program has ever ran on this user. This can be used to install any required files.</span>
+<span class="sd">        </span>
+<span class="sd">        `path` - The path that it should use. by default it is your userfolder &#39;C:/Users/&lt;user&gt;/.python/&lt;id&gt;&#39;. If set to &#39;%appdata%&#39; it will use the appdata folder instead &#39;C:/Users/&lt;user&gt;/AppData/Roaming/&lt;id&gt;&#39;</span>
+
+<span class="sd">        Methods</span>
+<span class="sd">        ---</span>
+<span class="sd">        join, uninstall, exists, open, listdir, show, download, unarchive, copy, remove</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_setup</span> <span class="o">=</span> <span class="n">setupcommand</span>
+        <span class="k">if</span> <span class="nb">id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stringM</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span>
+            <span class="n">byteM</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">stringM</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf&#39;</span><span class="p">)</span>
+            <span class="nb">id</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">byteM</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">trim</span><span class="p">(</span><span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span> <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+            <span class="sa">r</span><span class="s1">&#39;[^a-z._\-0-9]&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">trim</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~&#39;</span><span class="p">),</span> <span class="s1">&#39;.python&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="c1"># Default path</span>
+        <span class="k">if</span> <span class="n">path</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">match</span> <span class="n">path</span><span class="p">:</span>
+                <span class="k">case</span> <span class="s1">&#39;</span><span class="si">%a</span><span class="s1">ppdata%&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~&#39;</span><span class="p">),</span> <span class="s1">&#39;AppData&#39;</span><span class="p">,</span> <span class="s1">&#39;Roaming&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+                <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span>
+
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_setup</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>  <span class="c1"># Call setup command</span>
+
+        <span class="c1"># Root</span>
+        <span class="k">global</span> <span class="n">__root__</span>
+        <span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;user&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;User(id=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">)&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">trackcommand</span><span class="p">):</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">allow_redirects</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">filename</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filename</span><span class="p">),</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">r</span>
+
+    <span class="k">def</span> <span class="nf">_unarchive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="n">members</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">deletesrc</span><span class="p">,</span> <span class="n">trackcommand</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Internal Function&quot;&quot;&quot;</span>
+        <span class="n">src</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dst</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> <span class="n">dst</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span>
+        <span class="k">else</span><span class="p">:</span> <span class="n">dst</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span>
+        <span class="c1"># Get format</span>
+        <span class="k">if</span> <span class="nb">format</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># Auto detect format</span>
+            <span class="k">if</span> <span class="n">src</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.zip&#39;</span><span class="p">):</span>
+                <span class="nb">format</span> <span class="o">=</span> <span class="s1">&#39;zip&#39;</span>
+            <span class="k">elif</span> <span class="n">src</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.gz&#39;</span><span class="p">):</span>
+                <span class="nb">format</span> <span class="o">=</span> <span class="s1">&#39;gz&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">format</span> <span class="o">=</span> <span class="nb">format</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="k">match</span> <span class="nb">format</span><span class="o">.</span><span class="n">casefold</span><span class="p">():</span>
+            <span class="k">case</span> <span class="s1">&#39;zip&#39;</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">members</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">MEMBERS</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">namelist</span><span class="p">()</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">MEMBERS</span> <span class="o">=</span> <span class="n">members</span>
+                    <span class="n">total</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">MEMBERS</span><span class="p">)</span>
+                    <span class="n">count</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">MEMBERS</span><span class="p">:</span>
+                        <span class="n">file</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">dst</span><span class="p">)</span>
+                        <span class="n">event</span> <span class="o">=</span> <span class="n">TrackEvent</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="n">total</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">trackcommand</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">trackcommand</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+                        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">deletesrc</span><span class="p">:</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            
+            <span class="k">case</span> <span class="s1">&#39;gz&#39;</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">src</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">members</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">MEMBERS</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">getmembers</span><span class="p">()</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">MEMBERS</span> <span class="o">=</span> <span class="n">members</span>
+                    <span class="n">total</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">MEMBERS</span><span class="p">)</span>
+                    <span class="n">count</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">MEMBERS</span><span class="p">:</span>
+                        <span class="n">event</span> <span class="o">=</span> <span class="n">TrackEvent</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="n">total</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">trackcommand</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">trackcommand</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+                        <span class="n">file</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">dst</span><span class="p">)</span>
+                        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">deletesrc</span><span class="p">:</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">UnsupportedArchiveError</span><span class="p">(</span><span class="s1">&#39;Unsupported archive! Supported archive types: .zip, .gz&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="User.join">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User.join">[docs]</a>
+    <span class="k">def</span> <span class="nf">join</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Join user path</span>
+
+<span class="sd">        :param paths: A list of each folder in path</span>
+<span class="sd">        :type paths: A list of each folder in path</span>
+<span class="sd">        :return: The joined path</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">)</span></div>
+
+    <span class="n">get</span> <span class="o">=</span> <span class="n">join</span>
+
+<div class="viewcode-block" id="User.uninstall">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User.uninstall">[docs]</a>
+    <span class="k">def</span> <span class="nf">uninstall</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Will delete the scripts user folder</span>
+
+<span class="sd">        :return: true - successfully deleted the scripts user folder, false - failed to delete scripts user folder (A file is still being prossessed)</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list</span><span class="p">():</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="o">+</span><span class="n">filename</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">rmdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="User.exists">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User.exists">[docs]</a>
+    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if the file exists inside the scripts user folder</span>
+
+<span class="sd">        :param paths: A list of each folder in path</span>
+<span class="sd">        :type paths: str</span>
+<span class="sd">        :return: true - The file exists, false - The file does not exist</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="n">paths</span><span class="p">)):</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="User.open">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User.open">[docs]</a>
+    <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TextIOWrapper</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Opens the file that is in the scripts user folder</span>
+
+<span class="sd">        :param file: A list of each folder in path</span>
+<span class="sd">        :type file: str</span>
+<span class="sd">        :param mode: The mode to open this file in, defaults to &#39;r&#39;</span>
+<span class="sd">        :type mode: str, optional</span>
+<span class="sd">        :return: The contents of the file</span>
+<span class="sd">        :rtype: TextIOWrapper</span>
+
+<span class="sd">        Character	Meaning</span>
+<span class="sd">        ---</span>
+
+<span class="sd">        &#39;r&#39;	open for reading (default)</span>
+
+<span class="sd">        &#39;w&#39;	open for writing, truncating the file first</span>
+
+<span class="sd">        &#39;x&#39;	create a new file and open it for writing</span>
+
+<span class="sd">        &#39;a&#39;	open for writing, appending to the end of the file if it exists</span>
+
+<span class="sd">        &#39;b&#39;	binary mode</span>
+
+<span class="sd">        &#39;t&#39;	text mode (default)</span>
+
+<span class="sd">        &#39;+&#39;	open a disk file for updating (reading and writing)</span>
+
+<span class="sd">        &#39;U&#39;	universal newline mode (deprecated)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">PATH</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;w&#39;</span> <span class="ow">or</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;a&#39;</span><span class="p">:</span>
+            <span class="n">DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">PATH</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">DIR</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">open</span><span class="p">(</span><span class="n">PATH</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No File or directory: &#39;</span><span class="si">{</span><span class="n">PATH</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">open</span><span class="p">(</span><span class="n">PATH</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No File or directory: &#39;</span><span class="si">{</span><span class="n">PATH</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="User.listdir">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User.listdir">[docs]</a>
+    <span class="k">def</span> <span class="nf">listdir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">|</span><span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list of all files that are in the scripts users folder</span>
+
+<span class="sd">        :param paths: A list of each folder in path</span>
+<span class="sd">        :type paths: str</span>
+<span class="sd">        :return: list[str] - A list of all files that are currently inside the scripts user folder, None - Failed to list the directory</span>
+<span class="sd">        :rtype: list[str]|None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="n">paths</span><span class="p">))</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="User.show">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User.show">[docs]</a>
+    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Opens the file in your devices default editor. If filename is undefined it will open the scripts user folder</span>
+
+<span class="sd">        :param paths: A list of each folder in path</span>
+<span class="sd">        :type paths: str</span>
+<span class="sd">        :return: true - successfully showed the file or folder, false - failed to show file or folder</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">startfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="n">paths</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="User.download">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User.download">[docs]</a>
+    <span class="k">def</span> <span class="nf">download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">trackcommand</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">thread</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Download file from the web. If request returns status code &#39;404&#39; it will not download the file</span>
+
+<span class="sd">        :param package: The URL to the package to download</span>
+<span class="sd">        :type package: str</span>
+<span class="sd">        :param filename: The filename of the package, defaults to None</span>
+<span class="sd">        :type filename: str, optional</span>
+<span class="sd">        :param trackcommand: The callback command for downloading the file, defaults to None</span>
+<span class="sd">        :type trackcommand: Function, optional</span>
+<span class="sd">        :param thread: If true it will run in a new thread, defaults to False</span>
+<span class="sd">        :type thread: bool, optional</span>
+<span class="sd">        :return: Response from the download</span>
+<span class="sd">        :rtype: requests.Response</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">thread</span><span class="p">:</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_download</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">[</span><span class="n">package</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">trackcommand</span><span class="p">])</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_download</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">trackcommand</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="User.unarchive">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User.unarchive">[docs]</a>
+    <span class="k">def</span> <span class="nf">unarchive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dst</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">members</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">deletesrc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">trackcommand</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">thread</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Unarchive a zip or gz file. It&#39;s recomended to call this method in a thread</span>
+
+<span class="sd">        :param src: The path to the archive</span>
+<span class="sd">        :type src: str</span>
+<span class="sd">        :param dst: The destination to drop the unarchived folders, defaults to None</span>
+<span class="sd">        :type dst: str, optional</span>
+<span class="sd">        :param members: The members to unarchive. Will otherwise extract all members, defaults to None</span>
+<span class="sd">        :type members: list, optional</span>
+<span class="sd">        :param format: The archive format. &#39;zip&#39; or &#39;gz&#39;, defaults to None</span>
+<span class="sd">        :type format: str, optional</span>
+<span class="sd">        :param deletesrc: Delete the orgional source file after it is done unarchiving, defaults to True</span>
+<span class="sd">        :type deletesrc: bool, optional</span>
+<span class="sd">        :param trackcommand: The callback command for every member in archive, defaults to None</span>
+<span class="sd">        :type trackcommand: _type_, optional</span>
+<span class="sd">        :param thread: If true it will run in a new thread, defaults to False</span>
+<span class="sd">        :type thread: bool, optional</span>
+<span class="sd">        :return: true - successfully unarchived package, false - failed to unarchive package</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+       
+        
+        <span class="k">if</span> <span class="n">thread</span><span class="p">:</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_unarchive</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">[</span><span class="n">src</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="n">members</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">deletesrc</span><span class="p">,</span> <span class="n">trackcommand</span><span class="p">])</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_unarchive</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="n">members</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="n">deletesrc</span><span class="p">,</span> <span class="n">trackcommand</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="User.copy">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User.copy">[docs]</a>
+    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">dst</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">delete_src</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">delete_files</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Copy a file or directory from src to dst</span>
+
+<span class="sd">        :param src: The source path to copy</span>
+<span class="sd">        :type src: str</span>
+<span class="sd">        :param dst: The destination path to paste the source path</span>
+<span class="sd">        :type dst: str</span>
+<span class="sd">        :param delete_src: When true it will delete the source path, defaults to False</span>
+<span class="sd">        :type delete_src: bool, optional</span>
+<span class="sd">        :param delete_files: Delete all files in directory. (Can only delete empty directories), defaults to False</span>
+<span class="sd">        :type delete_files: bool, optional</span>
+<span class="sd">        :rtype: User</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_src</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+        <span class="n">_dst</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">src</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">_src</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">rb</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">_dst</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="c1"># Make the path</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">_dst</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">wb</span><span class="p">:</span> <span class="n">wb</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">rb</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="nb">dir</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">_src</span><span class="p">):</span>
+                <span class="n">src_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_src</span><span class="p">,</span> <span class="nb">dir</span><span class="p">)</span>
+                <span class="n">dst_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_dst</span><span class="p">,</span> <span class="nb">dir</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">src_path</span><span class="p">,</span> <span class="n">dst_path</span><span class="p">,</span> <span class="n">delete_src</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">delete_src</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">_src</span><span class="p">,</span> <span class="n">delete_files</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="User.remove">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.User.remove">[docs]</a>
+    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">delete_files</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Removes a directory or a file from the UserFolder</span>
+
+<span class="sd">        :param path: The file or directory to delete</span>
+<span class="sd">        :type path: str</span>
+<span class="sd">        :param delete_files: Delete all files in directory. (Can only delete empty directories), defaults to False</span>
+<span class="sd">        :type delete_files: bool, optional</span>
+<span class="sd">        :rtype: User</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">_path</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">delete_files</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">_path</span><span class="p">):</span>
+                    <span class="n">fp</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_path</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">delete_files</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">rmdir</span><span class="p">(</span><span class="n">_path</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;. You must set delete_files argument to True.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+</div>
+
+
+<div class="viewcode-block" id="Storage">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Storage">[docs]</a>
+<span class="k">class</span> <span class="nc">Storage</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;storage.yaml&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a file to store key/value pairs</span>
+
+<span class="sd">        :param user: The User class for the storage, defaults to None</span>
+<span class="sd">        :type user: User, optional</span>
+<span class="sd">        :param filename: The name of the file to store all values, defaults to &#39;storage.yaml&#39;</span>
+<span class="sd">        :type filename: str, optional</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">user</span> <span class="o">=</span> <span class="n">get_user</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">first</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># Create file</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">)</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="n">wrt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+            <span class="n">wrt</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="n">wrt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">first</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_len</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">name</span>  <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;Storage(filename=&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;)&#39;</span>
+    
+    <span class="k">def</span> <span class="nf">_len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">opn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">opn</span><span class="p">,</span> <span class="n">yaml</span><span class="o">.</span><span class="n">FullLoader</span><span class="p">)</span>
+        <span class="n">opn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">return</span> <span class="n">count</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="Storage.get_item">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Storage.get_item">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The current value associated with the given key, or null if the given key does not exist.</span>
+
+<span class="sd">        :param key: Get the value of the key</span>
+<span class="sd">        :type key: str</span>
+<span class="sd">        :rtype: Any</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">opn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">opn</span><span class="p">,</span> <span class="n">yaml</span><span class="o">.</span><span class="n">FullLoader</span><span class="p">)</span>
+        <span class="n">opn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></div>
+
+    <span class="n">get</span> <span class="o">=</span> <span class="n">get_item</span>
+
+<div class="viewcode-block" id="Storage.set_item">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Storage.set_item">[docs]</a>
+    <span class="k">def</span> <span class="nf">set_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously</span>
+
+<span class="sd">        :param key: The key to set</span>
+<span class="sd">        :type key: str</span>
+<span class="sd">        :param value: The value of the key to set</span>
+<span class="sd">        :type value: str</span>
+<span class="sd">        :rtype: Storage</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">opn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">opn</span><span class="p">,</span> <span class="n">yaml</span><span class="o">.</span><span class="n">FullLoader</span><span class="p">)</span>
+        <span class="n">opn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">data</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">data</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="n">wrt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">wrt</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+        <span class="n">wrt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+    <span class="nb">set</span> <span class="o">=</span> <span class="n">set_item</span>
+
+<div class="viewcode-block" id="Storage.remove_item">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Storage.remove_item">[docs]</a>
+    <span class="k">def</span> <span class="nf">remove_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Removes the key/value pair with the given key, if a key/value pair with the given key exists</span>
+
+<span class="sd">        :param key: The key/value pair to remove</span>
+<span class="sd">        :type key: str</span>
+<span class="sd">        :rtype: Storage</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">opn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">opn</span><span class="p">,</span> <span class="n">yaml</span><span class="o">.</span><span class="n">FullLoader</span><span class="p">)</span>
+        <span class="n">opn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">data</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">data</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+            <span class="n">wrt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+            <span class="n">wrt</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+            <span class="n">wrt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+    <span class="n">remove</span> <span class="o">=</span> <span class="n">remove_item</span>
+
+<div class="viewcode-block" id="Storage.clear">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Storage.clear">[docs]</a>
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Removes all key/value pairs, if there are any</span>
+
+<span class="sd">        :rtype: Storage</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">wrt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">wrt</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">wrt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Storage.key">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Storage.key">[docs]</a>
+    <span class="k">def</span> <span class="nf">key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the name of the nth key, or None if n is greater than or equal to the number of key/value pairs</span>
+
+<span class="sd">        :param index: The index in the store to get the key from</span>
+<span class="sd">        :type index: int</span>
+<span class="sd">        :return: str - Name of the key, None - Index out of bounds error</span>
+<span class="sd">        :rtype: str|None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">opn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">opn</span><span class="p">,</span> <span class="n">yaml</span><span class="o">.</span><span class="n">FullLoader</span><span class="p">)</span>
+        <span class="n">opn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># get all keys in a list</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">keys</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">index</span><span class="p">)]</span>
+            <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="Storage.exists">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Storage.exists">[docs]</a>
+    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if key/value pair exists</span>
+
+<span class="sd">        :param key: The key to test for</span>
+<span class="sd">        :type key: str</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">getItem</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="Storage.show">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Storage.show">[docs]</a>
+    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Open the storage file</span>
+
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">startfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Storage.destroy">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Storage.destroy">[docs]</a>
+    <span class="k">def</span> <span class="nf">destroy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete this storage file</span>
+
+<span class="sd">        :rtype: Storage</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span> <span class="k">pass</span>
+        <span class="k">del</span> <span class="bp">self</span></div>
+</div>
+
+
+<div class="viewcode-block" id="localStorage">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.localStorage">[docs]</a>
+<span class="k">class</span> <span class="nc">localStorage</span><span class="p">(</span><span class="n">Storage</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        General storage class. Allows you to store key/values in the user folder</span>
+
+<span class="sd">        :param user: The User class for the local storage, defaults to None</span>
+<span class="sd">        :type user: User, optional</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="s1">&#39;localStorage.yaml&#39;</span><span class="p">)</span>
+        <span class="k">global</span> <span class="n">__root__</span>
+        <span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;localStorage&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="sessionStorage">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.sessionStorage">[docs]</a>
+<span class="k">class</span> <span class="nc">sessionStorage</span><span class="p">(</span><span class="n">Storage</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Simlar to localStorage but gets cleared everytime the program starts</span>
+
+<span class="sd">        :param user: The User class for the session storage, defaults to None</span>
+<span class="sd">        :type user: User, optional</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="s1">&#39;.session/</span><span class="si">%s</span><span class="s1">.yaml&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="p">))</span>
+
+        <span class="k">global</span> <span class="n">__root__</span>
+        <span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;sessionStorage&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Config">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Config">[docs]</a>
+<span class="k">class</span> <span class="nc">Config</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">section</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        General config file for program settings</span>
+
+<span class="sd">        :param user: The User class for the config, defaults to None</span>
+<span class="sd">        :type user: User, optional</span>
+<span class="sd">        :param section: The configs section, defaults to None</span>
+<span class="sd">        :type section: str, optional</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span> <span class="n">user</span> <span class="o">=</span> <span class="n">get_user</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">registry</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Default section is the user id</span>
+        <span class="k">if</span> <span class="n">section</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span> <span class="n">section</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_section</span> <span class="o">=</span> <span class="n">section</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;.cfg&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">configparser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="p">()</span>
+
+        <span class="c1"># Create config file</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">)</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_write</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_read</span><span class="p">()</span>
+
+        <span class="c1"># Create section if missing</span>
+        <span class="k">if</span> <span class="n">section</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">section</span><span class="p">)]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_write</span><span class="p">()</span>
+
+            
+        <span class="c1"># Root</span>
+        <span class="k">global</span> <span class="n">__root__</span>
+        <span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;config&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;.cfg&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">configfile</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">read_string</span><span class="p">(</span><span class="n">configfile</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">_write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;.cfg&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">configfile</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">configfile</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Config.section">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Config.section">[docs]</a>
+    <span class="k">def</span> <span class="nf">section</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The section in the config</span>
+
+<span class="sd">        :param name: The name of the section</span>
+<span class="sd">        :type name: str</span>
+<span class="sd">        :return: The config section</span>
+<span class="sd">        :rtype: Config</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Config.exists">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Config.exists">[docs]</a>
+    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if the key is already defined</span>
+
+<span class="sd">        :param key: The key to check</span>
+<span class="sd">        :type key: str</span>
+<span class="sd">        :return: true - exists, false - does not exist</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="Config.register_item">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Config.register_item">[docs]</a>
+    <span class="k">def</span> <span class="nf">register_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">datatype</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">from_</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">to</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously</span>
+
+<span class="sd">        :param key: The key to set</span>
+<span class="sd">        :type key: str</span>
+<span class="sd">        :param default: The fallback value to use, defaults to None</span>
+<span class="sd">        :type default: _type_, optional</span>
+<span class="sd">        :param datatype: The datatype to use for this value, defaults to None</span>
+<span class="sd">        :type datatype: _type_, optional</span>
+<span class="sd">        :param title: Title of this option, defaults to None</span>
+<span class="sd">        :type title: str, optional</span>
+<span class="sd">        :param description: Description about this option, defaults to None</span>
+<span class="sd">        :type description: str, optional</span>
+<span class="sd">        :param from_: The minimum allowed value, defaults to None</span>
+<span class="sd">        :type from_: float, optional</span>
+<span class="sd">        :param to: The maximum allowed value, defaults to None</span>
+<span class="sd">        :type to: float, optional</span>
+<span class="sd">        :rtype: Config</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">registry</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="n">title</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="n">description</span><span class="p">,</span> <span class="s1">&#39;datatype&#39;</span><span class="p">:</span> <span class="n">datatype</span><span class="p">,</span> <span class="s1">&#39;from_&#39;</span><span class="p">:</span> <span class="n">from_</span><span class="p">,</span> <span class="s1">&#39;to&#39;</span><span class="p">:</span> <span class="n">to</span><span class="p">}</span>
+        <span class="k">try</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;DEFAULT&#39;</span><span class="p">,</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">configparser</span><span class="o">.</span><span class="n">NoOptionError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;DEFAULT&#39;</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">default</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_write</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Config.unregister_item">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Config.unregister_item">[docs]</a>
+    <span class="k">def</span> <span class="nf">unregister_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span><span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Removes this item from the registry</span>
+
+<span class="sd">        :param key: The key to remove</span>
+<span class="sd">        :type key: str</span>
+<span class="sd">        :return: The removed registry item</span>
+<span class="sd">        :rtype: _type_</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Config.set_item">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Config.set_item">[docs]</a>
+    <span class="k">def</span> <span class="nf">set_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the value of the pair identified by key to value, creating a new key/value pair if none existed for key previously</span>
+
+<span class="sd">        :param key: The key to set</span>
+<span class="sd">        :type key: str</span>
+<span class="sd">        :param value: The value of the key to set</span>
+<span class="sd">        :type value: Any</span>
+<span class="sd">        :rtype: Config</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Validate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_section</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+    <span class="nb">set</span> <span class="o">=</span> <span class="n">set_item</span>
+
+<div class="viewcode-block" id="Config.get_item">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Config.get_item">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the current value associated with the given key, or null if the given key does not exist</span>
+
+<span class="sd">        :param key: The key/value pair to get</span>
+<span class="sd">        :type key: str</span>
+<span class="sd">        :param default: The value to return if the option cannot be found, defaults to None</span>
+<span class="sd">        :type default: Any, optional</span>
+<span class="sd">        :rtype: Any</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_section</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">configparser</span><span class="o">.</span><span class="n">NoOptionError</span><span class="p">:</span> <span class="k">return</span> <span class="n">default</span></div>
+
+    <span class="n">get</span> <span class="o">=</span> <span class="n">get_item</span>
+
+<div class="viewcode-block" id="Config.remove_item">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Config.remove_item">[docs]</a>
+    <span class="k">def</span> <span class="nf">remove_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Removes the key/value pair</span>
+
+<span class="sd">        :param key: The key/value pair to remove</span>
+<span class="sd">        :type key: str</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">remove_option</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_section</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+
+    <span class="n">remove</span> <span class="o">=</span> <span class="n">remove_item</span></div>
+
+
+<div class="viewcode-block" id="Cache">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Cache">[docs]</a>
+<span class="k">class</span> <span class="nc">Cache</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span><span class="n">User</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">root_path</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Cache any file</span>
+
+<span class="sd">        :param id: The id of this cache, defaults to None</span>
+<span class="sd">        :type id: str, optional</span>
+<span class="sd">        :param user: The user that this cache is for, defaults to None</span>
+<span class="sd">        :type user: User, optional</span>
+<span class="sd">        :param root_path: The root path, defaults to None</span>
+<span class="sd">        :type root_path: str, optional</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">global</span> <span class="n">__root__</span>
+        <span class="k">if</span> <span class="nb">id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span> <span class="nb">id</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;cache&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="nb">id</span>
+
+        <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span> <span class="n">user</span> <span class="o">=</span> <span class="n">get_user</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
+
+        <span class="k">if</span> <span class="n">root_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span> <span class="n">root_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root_path</span> <span class="o">=</span> <span class="n">root_path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_path</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;.cache&#39;</span><span class="p">,</span> <span class="s1">&#39;indexes&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;.json&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objects_path</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;.cache&#39;</span><span class="p">,</span> <span class="s1">&#39;objects&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objects</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Create</span>
+        <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_path</span><span class="p">)</span><span class="o">==</span><span class="kc">False</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_write_index</span><span class="p">()</span>
+
+        <span class="c1"># Open index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_read_index</span><span class="p">()</span>
+
+        <span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;cache&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_cache_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">hash</span><span class="p">:</span><span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;.cache&#39;</span><span class="p">,</span> <span class="s1">&#39;objects&#39;</span><span class="p">,</span> <span class="nb">hash</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">],</span> <span class="nb">hash</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_read_index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">r</span><span class="p">:</span>
+            <span class="n">objs</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">r</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;objects&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">objs</span><span class="o">!=</span><span class="kc">None</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">objects</span> <span class="o">=</span> <span class="n">objs</span>
+
+    <span class="k">def</span> <span class="nf">_write_index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;objects&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">objects</span><span class="p">}</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span> <span class="n">w</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
+
+<div class="viewcode-block" id="Cache.exists">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Cache.exists">[docs]</a>
+    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if the file is already cached</span>
+
+<span class="sd">        :return: true - cached, false - not cached</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="o">*</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">objects</span></div>
+
+
+<div class="viewcode-block" id="Cache.key">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Cache.key">[docs]</a>
+    <span class="k">def</span> <span class="nf">key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the index key from the path</span>
+
+<span class="sd">        :param path: The full path to the file</span>
+<span class="sd">        :type path: str</span>
+<span class="sd">        :return: _description_</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rep</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root_path</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^[a-zA-Z]:&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">rep</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Cache.add_file">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Cache.add_file">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">rewrite</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add file to cache</span>
+
+<span class="sd">        :param rewrite: The file to cache</span>
+<span class="sd">        :type rewrite: str</span>
+<span class="sd">        :param rewrite: When true it will re-cache this file even if its already cached, defaults to False</span>
+<span class="sd">        :type rewrite: bool, optional</span>
+<span class="sd">        :rtype: Cache</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">fp</span><span class="p">):</span>
+            <span class="nb">hash</span> <span class="o">=</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span> <span class="ow">and</span> <span class="n">rewrite</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
+                <span class="nb">hash</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">objects</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;hash&#39;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span><span class="o">==</span><span class="kc">False</span> <span class="ow">or</span> <span class="n">rewrite</span><span class="p">:</span>
+                <span class="n">cache_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_path</span><span class="p">(</span><span class="nb">hash</span><span class="p">)</span>
+                <span class="c1"># Copy file</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">rb</span><span class="p">:</span> <span class="n">dat</span> <span class="o">=</span> <span class="n">rb</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">cache_path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">cache_path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">wb</span><span class="p">:</span> <span class="n">wb</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">dat</span><span class="p">)</span>
+                <span class="c1"># Add file to index</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">objects</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;hash&quot;</span><span class="p">:</span> <span class="nb">hash</span><span class="p">,</span> <span class="s2">&quot;size&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">fp</span><span class="p">)}</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_write_index</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span> <span class="k">raise</span> <span class="n">CacheError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No such file: &#39;</span><span class="si">{</span><span class="n">fp</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Cache.add_directory">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Cache.add_directory">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">rewrite</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add all files in directory to cache</span>
+
+<span class="sd">        :param path: The directory to cache</span>
+<span class="sd">        :type path: str</span>
+<span class="sd">        :param rewrite:  When true it will re-cache this directory even if its already cached, defaults to False</span>
+<span class="sd">        :type rewrite: bool, optional</span>
+<span class="sd">        :rtype: Cache</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+                <span class="n">fp</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">fp</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_file</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">rewrite</span><span class="o">=</span><span class="n">rewrite</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_directory</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">rewrite</span><span class="o">=</span><span class="n">rewrite</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="k">raise</span> <span class="n">CacheError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No such directory: &#39;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Cache.remove_file">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Cache.remove_file">[docs]</a>
+    <span class="k">def</span> <span class="nf">remove_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete a file from cache</span>
+
+<span class="sd">        :param path: The file to delete from cache</span>
+<span class="sd">        :type path: str</span>
+<span class="sd">        :rtype: Cache</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="o">*</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cache_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_path</span><span class="p">(</span><span class="n">index</span><span class="p">[</span><span class="s1">&#39;hash&#39;</span><span class="p">])</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">cache_path</span><span class="p">)</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">objects</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_write_index</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span> <span class="k">raise</span> <span class="n">CacheError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No such file: &#39;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+    
+<div class="viewcode-block" id="Cache.get_file">
+<a class="viewcode-back" href="../UserFolder.html#UserFolder.Cache.get_file">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a temp file path</span>
+
+<span class="sd">        :param path: The file to get from cache.</span>
+<span class="sd">        :type path: str</span>
+<span class="sd">        :return: The name of the file</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="o">*</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_path</span><span class="p">(</span><span class="n">index</span><span class="p">[</span><span class="s1">&#39;hash&#39;</span><span class="p">])</span>
+            <span class="c1"># Make sure filesize matches</span>
+            <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;size&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">fp</span><span class="p">):</span>
+                <span class="n">suffix</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">key</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="n">suffix</span><span class="p">,</span><span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">global</span> <span class="n">__temp__</span>
+                <span class="n">__temp__</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp</span><span class="p">)</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">rb</span><span class="p">:</span> <span class="n">tmp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">rb</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+                <span class="k">return</span> <span class="n">tmp</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">raise</span> <span class="n">CacheError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File has been modified or is corrupt: &#39;</span><span class="si">{</span><span class="n">fp</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">CacheError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No such file: &#39;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span></div>
+</div>
+
+
+<span class="k">def</span> <span class="nf">_cleanup</span><span class="p">():</span>
+    <span class="c1"># destroy sessionStorage</span>
+    <span class="n">stores</span> <span class="o">=</span> <span class="n">get_session_storage</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">stores</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">store</span> <span class="ow">in</span> <span class="n">stores</span><span class="p">:</span> <span class="n">store</span><span class="o">.</span><span class="n">destroy</span><span class="p">()</span>
+
+    <span class="c1"># Delete temp files</span>
+    <span class="k">global</span> <span class="n">__temp__</span>
+    <span class="k">for</span> <span class="n">tmp</span> <span class="ow">in</span> <span class="n">__temp__</span><span class="p">:</span>
+        <span class="n">tmp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">tmp</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+<span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">_cleanup</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">get_user</span><span class="p">(</span><span class="n">create</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">User</span><span class="o">|</span><span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The root user. If not defined it will create a user</span>
+
+<span class="sd">    :param create: If no user can be found create one, defaults to True</span>
+<span class="sd">    :type create: bool, optional</span>
+<span class="sd">    :rtype: User|None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">__root__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;user&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;user&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">create</span><span class="p">:</span> <span class="k">return</span> <span class="n">User</span><span class="p">()</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+<span class="k">def</span> <span class="nf">get_config</span><span class="p">(</span><span class="n">create</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Config</span><span class="o">|</span><span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The root config. If not defined it will create the config</span>
+
+<span class="sd">    :param create: If no config can be found create one, defaults to True</span>
+<span class="sd">    :type create: bool, optional</span>
+<span class="sd">    :rtype: Config|None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">__root__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;config&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;config&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">create</span><span class="p">:</span> <span class="k">return</span> <span class="n">Config</span><span class="p">()</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+<span class="k">def</span> <span class="nf">get_session_storage</span><span class="p">(</span><span class="n">create</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">sessionStorage</span><span class="p">]</span><span class="o">|</span><span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The root session storage. If not defined it will create one</span>
+
+<span class="sd">    :param create: If no storage can be found create one, defaults to True</span>
+<span class="sd">    :type create: bool, optional</span>
+<span class="sd">    :rtype: list[sessionStorage]|None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">__root__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sessionStorage&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;sessionStorage&#39;</span><span class="p">])</span><span class="o">&gt;=</span><span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;sessionStorage&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">create</span><span class="p">:</span> <span class="k">return</span> <span class="n">sessionStorage</span><span class="p">()</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+<span class="k">def</span> <span class="nf">get_cache</span><span class="p">(</span><span class="n">create</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Cache</span><span class="p">]</span><span class="o">|</span><span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The root cache. If not defined it will create one.</span>
+
+<span class="sd">    :param create: If no cache can be found create one, defaults to True</span>
+<span class="sd">    :type create: bool, optional</span>
+<span class="sd">    :rtype: list[Cache]|None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">__root__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cache&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;cache&#39;</span><span class="p">])</span><span class="o">&gt;=</span><span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;cache&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">create</span><span class="p">:</span> <span class="k">return</span> <span class="n">Cache</span><span class="p">()</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+<span class="k">def</span> <span class="nf">get_local_storage</span><span class="p">(</span><span class="n">create</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">localStorage</span><span class="o">|</span><span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The root local storage. If not defined it will create one</span>
+
+<span class="sd">    :param create: If no storage can be found create one, defaults to True</span>
+<span class="sd">    :type create: bool, optional</span>
+<span class="sd">    :rtype: localStorage|None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">__root__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;localStorage&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">__root__</span><span class="p">[</span><span class="s1">&#39;localStorage&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">create</span><span class="p">:</span> <span class="k">return</span> <span class="n">localStorage</span><span class="p">()</span>
+    <span class="k">return</span> <span class="kc">None</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Legopitstop.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
